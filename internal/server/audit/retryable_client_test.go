@@ -31,26 +31,33 @@ func TestRetrier_Failure(t *testing.T) {
 }
 
 func TestRetrier_Success(t *testing.T) {
-	retrier := NewRetrier(zap.NewNop(), 5*time.Second)
+	for _, status := range []int{
+		200,
+		202,
+	} {
+		t.Run(strcov.Itoa(status), func(t *testing.T) {
+			retrier := NewRetrier(zap.NewNop(), 5*time.Second)
 
-	gock.New("https://respond.io").
-		MatchHeader("Content-Type", "application/json").
-		Post("/webhook").
-		Reply(200)
-	defer gock.Off()
+			gock.New("https://respond.io").
+				MatchHeader("Content-Type", "application/json").
+				Post("/webhook").
+				Reply(status)
+			defer gock.Off()
 
-	rc := func(ctx context.Context, body []byte) (*http.Request, error) {
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://respond.io/webhook", bytes.NewBuffer(body))
-		if err != nil {
-			return nil, err
-		}
+			rc := func(ctx context.Context, body []byte) (*http.Request, error) {
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, "https://respond.io/webhook", bytes.NewBuffer(body))
+				if err != nil {
+					return nil, err
+				}
 
-		req.Header.Add("Content-Type", "application/json")
+				req.Header.Add("Content-Type", "application/json")
 
-		return req, nil
+				return req, nil
+			}
+
+			err := retrier.RequestRetry(context.TODO(), []byte(`{"hello": "world"}`), rc)
+
+			assert.Nil(t, err)
+		})
 	}
-
-	err := retrier.RequestRetry(context.TODO(), []byte(`{"hello": "world"}`), rc)
-
-	assert.Nil(t, err)
 }

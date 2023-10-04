@@ -61,7 +61,7 @@ func (r *retryClient) RequestRetry(ctx context.Context, body []byte, fn RequestC
 			continue
 		}
 
-		if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusAccepted {
 			r.logger.Debug("webhook request failed, retrying...", zap.Int("status_code", resp.StatusCode))
 			_, _ = io.Copy(io.Discard, resp.Body)
 			_ = resp.Body.Close()
